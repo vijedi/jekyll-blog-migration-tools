@@ -32,8 +32,12 @@ class GistEmbedder
             
             fragment = Nokogiri::HTML::fragment(content_str)
             fragment.xpath('p[@class = "embed_gist"]').each  do |node|
-                puts node
+                new_node = Nokogiri::XML::Node.new "div", fragment
+                new_node.inner_html = "<!-- replaced -->"
+                node.replace new_node
             end
+            
+            puts fragment
         end
     end
 end
