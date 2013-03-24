@@ -1,5 +1,8 @@
 require 'octokit'
 require 'nokogiri'
+require 'yaml'
+require 'stringex'
+require 'fileutils'
 
 class GistTransform
     def initialize
@@ -27,7 +30,7 @@ class GistTransform
                     end
                     content = file['content']
                     new_node = Nokogiri::XML::Node.new "div", fragment
-                    new_node['class'] =  'highlight'
+                    new_node['class'] =  'highlight_area'
                     new_text = "\n{% highlight #{lang} %}\n"
                     new_text += content
                     new_text += "\n{% endhighlight %}\n"
@@ -48,6 +51,25 @@ class GistTransform
     end
 end
 
+class NameTransform
+    def initialize
+        
+    end
+    
+    def transform(file_name, front_matter, content)
+        puts file_name
+        if front_matter =~ /\A(---\s*\n.*?\n?)^(---\s*$\n?)/m
+          match = $POSTMATCH
+          data = YAML.load($1)
+        end
+        if(not data['title'].nil?)
+            permalink =  data['title'].to_url(:limit => 40) + '.md'
+            new_file_name = File.join(File.dirname(file_name), permalink)
+            FileUtils.mv file_name, new_file_name
+        end
+    end
+end
+
 class PostTransformer
     def initialize(post_dir, transformer)
         @postDir = post_dir
@@ -55,7 +77,13 @@ class PostTransformer
     end
     
     def run 
-        Dir.foreach(@postDir) do |post|
+        # get a snapshot of the directory
+        files = []
+        Dir.foreach(@postDir) do |postfile|
+            files.push(postfile)
+        end
+        
+        files.each do |post|
             next if post == '.' or post == '..'
             file = File.open(File.join(@postDir, post))
             
@@ -78,5 +106,5 @@ class PostTransformer
     end
 end
 
-transformer = PostTransformer.new(ARGV[0], GistTransform.new)
+transformer = PostTransformer.new(ARGV[0], NameTransform.new)
 transformer.run()
