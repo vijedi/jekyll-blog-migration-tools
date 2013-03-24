@@ -10,10 +10,11 @@ class GistTransform
     
     def transform(file_name, front_matter, content)
         fragment = Nokogiri::HTML::fragment(content)
+        changed = false
+        
         fragment.xpath('p[@class = "embed_gist"]').each  do |node|
             gist_href = node.xpath('a/@href')
             gist_id =  gist_href.to_s.split('/').last
-            changed = false
             @client.gist(gist_id).files.each do |files|
                 files.each do |file|
                     if file.class != Hashie::Mash
@@ -21,6 +22,9 @@ class GistTransform
                     end
                     
                     lang =  file['language'].downcase
+                    if(lang == 'shell')
+                        lang = 'bash' # manually convert to something pygments understands 
+                    end
                     content = file['content']
                     new_node = Nokogiri::XML::Node.new "div", fragment
                     new_node['class'] =  'highlight'
@@ -33,12 +37,14 @@ class GistTransform
                 end
             end
             
-            fullcontent = [front_matter, fragment.to_s].join("\n")
-            
-            # new_node = Nokogiri::XML::Node.new "div", fragment
-            # new_node.inner_html = "<!-- replaced -->"
-            # node.replace new_node
         end
+        
+        if(changed)
+            fullcontent = [front_matter, fragment.to_s].join("\n")
+            puts "writing " + file_name
+            File.open(file_name, 'w') {|f| f.write(fullcontent) }
+        end
+    
     end
 end
 
@@ -74,7 +80,3 @@ end
 
 transformer = PostTransformer.new(ARGV[0], GistTransform.new)
 transformer.run()
-
-# @client.gist(3880535).files.each do |file|
-#    puts file[1].content
-# end
