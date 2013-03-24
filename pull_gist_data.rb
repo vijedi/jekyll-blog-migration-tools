@@ -30,7 +30,7 @@ class GistTransform
                     end
                     content = file['content']
                     new_node = Nokogiri::XML::Node.new "div", fragment
-                    new_node['class'] =  'highlight_area'
+                    new_node['class'] =  'remove_this_node'
                     new_text = "\n{% highlight #{lang} %}\n"
                     new_text += content
                     new_text += "\n{% endhighlight %}\n"
@@ -57,14 +57,17 @@ class NameTransform
     end
     
     def transform(file_name, front_matter, content)
-        puts file_name
+        name = File.basename(file_name, File.extname(file_name))
+        year,month,day =  name.split('-')
+        date_part = "#{year}-#{month}-#{day}"
         if front_matter =~ /\A(---\s*\n.*?\n?)^(---\s*$\n?)/m
           match = $POSTMATCH
           data = YAML.load($1)
         end
         if(not data['title'].nil?)
-            permalink =  data['title'].to_url(:limit => 40) + '.md'
+            permalink = date_part + '-' + data['title'].to_url(:limit => 40) + '.html'
             new_file_name = File.join(File.dirname(file_name), permalink)
+            puts new_file_name
             FileUtils.mv file_name, new_file_name
         end
     end
@@ -106,5 +109,6 @@ class PostTransformer
     end
 end
 
+# transformer = PostTransformer.new(ARGV[0], GistTransform.new)
 transformer = PostTransformer.new(ARGV[0], NameTransform.new)
 transformer.run()
